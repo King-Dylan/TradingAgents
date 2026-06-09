@@ -33,6 +33,7 @@ _TRADING_ANALYSIS_DEPTH_INSTRUCTION = """TradingAgents output-depth contract:
 - Preserve the five-tier portfolio scale. Buy and Sell are high-conviction endpoints; Overweight and Underweight are valid nuanced portfolio ratings for partial exposure changes. Do not collapse "trim", "reduce risk", "avoid adding", or "keep a tracking position" into a full Sell unless the memo actually recommends exiting or avoiding the position outright.
 - Keep tactical transaction proposals distinct from portfolio ratings. A TraderProposal may use Buy/Hold/Sell for execution, but the Portfolio Manager must restore the five-tier rating nuance when sizing, risk controls, or the debate support a partial position rather than an endpoint.
 - Do not equate a tactical TraderProposal Hold with a portfolio-rating Hold. If the research plan and risk debate support above-benchmark exposure, staged entries, or rebuilding to an overweight risk budget after triggers, the Portfolio Manager should preserve Overweight even when the immediate trade action is Hold. Choose the final rating from target exposure and thesis strength, not from the transaction verb alone.
+- For TraderProposal, Buy means initiating or building a long exposure program, including staged, conditional, or pullback-based entries. Do not reserve Buy only for an immediate market order. When the Research Manager recommends Buy or Overweight and gives levels for building, adding, restoring, or increasing exposure, the Trader should normally choose Buy with disciplined entry/sizing/stop details. Use Hold only when the plan truly calls for maintaining existing exposure with no planned add or reduce program.
 - Weigh evidence according to the requested investment horizon. Do not let a one-day technical move or valuation concern mechanically override already observed fundamentals, backlog/deferred revenue, margin progress, insider/customer evidence, or catalysts; explain why those positives are or are not sufficient.
 - In growth-equity debates, separate "not enough safety margin for Buy" from "thesis broken enough for Underweight/Sell". Valuation, negative FCF, leverage, heavy CapEx, or technical weakness can cap sizing and conviction, but should only drive Underweight/Sell after weighing whether realized growth, margin expansion, backlog/deferred revenue, pricing power, customer adoption, catalysts, horizon, and position controls preserve a constructive risk/reward.
 - Use the requested output language from the conversation. Keep JSON protocols valid when JSON is required, but put the full report text inside the JSON string fields."""
@@ -405,8 +406,11 @@ class CodexStructuredChatModel:
             "horizon. Preserve rating-scale semantics: choose Buy/Sell only "
             "for endpoint conviction, and choose Overweight/Underweight when "
             "the memo supports partial exposure changes, disciplined sizing, "
-            "or tracking positions. For PortfolioDecision, set the rating from "
-            "the target exposure implied by the memo, not just from the "
+            "or tracking positions. For TraderProposal, choose Buy for a "
+            "staged long-entry or add-to-exposure plan even when entries are "
+            "conditional or split across price levels; Hold is for no planned "
+            "transaction. For PortfolioDecision, set the rating from the "
+            "target exposure implied by the memo, not just from the "
             "TraderProposal action verb. Do not shorten fields merely because "
             "the response is JSON."
             "\n\n"
