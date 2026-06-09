@@ -50,6 +50,26 @@ def test_codex_chat_model_shells_out_and_reads_last_message(monkeypatch, tmp_pat
     assert seen["timeout"] == 12
 
 
+def test_codex_chat_model_instructs_full_trading_analysis_depth(
+    monkeypatch, tmp_path
+):
+    seen = {}
+    _fake_codex_run(monkeypatch, "final answer", seen)
+
+    llm = CodexChatModel(model="default", working_dir=str(tmp_path))
+    llm.invoke("Analyze NBIS.")
+
+    assert "TradingAgents output-depth contract" in seen["input"]
+    assert "Do not compress analyst reports" in seen["input"]
+    assert "concrete numbers, dates, price levels, tool evidence" in seen["input"]
+    assert "Preserve the five-tier portfolio scale" in seen["input"]
+    assert "Do not collapse" in seen["input"]
+    assert "tactical TraderProposal Hold" in seen["input"]
+    assert "one-day technical move" in seen["input"]
+    assert "not enough safety margin for Buy" in seen["input"]
+    assert "realized growth, margin expansion" in seen["input"]
+
+
 def test_codex_chat_model_passes_custom_model(monkeypatch, tmp_path):
     seen = {}
     _fake_codex_run(monkeypatch, "ok", seen)
@@ -101,6 +121,7 @@ def test_codex_bound_tools_parse_json_tool_calls(monkeypatch, tmp_path):
     result = llm.bind_tools([lookup_price]).invoke("Need the latest test price.")
 
     assert "Available tools" in seen["input"]
+    assert "complete final report" in seen["input"]
     assert result.content == ""
     assert result.tool_calls == [
         {
@@ -139,6 +160,10 @@ def test_codex_structured_output_returns_pydantic_model(monkeypatch, tmp_path):
     assert result.entry_price == 218.0
     assert "JSON Schema" in seen["input"]
     assert "TraderProposal" in seen["input"]
+    assert "Structured output is the final TradingAgents report" in seen["input"]
+    assert "Preserve rating-scale semantics" in seen["input"]
+    assert "target exposure implied by the memo" in seen["input"]
+    assert "Do not shorten fields merely because the response is JSON" in seen["input"]
 
 
 def test_codex_structured_output_adds_schema_instruction_to_message_lists(
@@ -159,6 +184,7 @@ def test_codex_structured_output_adds_schema_instruction_to_message_lists(
     assert result.action is TraderAction.HOLD
     assert "HUMAN:\nMake a proposal." in seen["input"]
     assert "Return ONLY valid JSON for TraderProposal" in seen["input"]
+    assert "TradingAgents output-depth contract" in seen["input"]
 
 
 def test_codex_client_and_factory_return_codex_chat_model(monkeypatch):

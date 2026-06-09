@@ -26,6 +26,16 @@ from .base_client import BaseLLMClient
 
 _DEFAULT_MODEL_ALIASES = {"", "default", "codex", "codex-cli"}
 _CODEX_REASONING_EFFORTS = {"minimal", "low", "medium", "high", "xhigh"}
+_TRADING_ANALYSIS_DEPTH_INSTRUCTION = """TradingAgents output-depth contract:
+- Preserve the original agent workflow's depth. Do not compress analyst reports, researcher debates, risk debates, or manager decisions into terse summaries.
+- When writing a final answer, produce a full investment-research artifact: concrete numbers, dates, price levels, tool evidence, bull and bear counterpoints, risk controls, and the reasoning chain that connects evidence to the recommendation.
+- Debate agents must actively engage prior arguments instead of restating a short position. Decision agents must explain why the winning side won and which opposing points still matter.
+- Preserve the five-tier portfolio scale. Buy and Sell are high-conviction endpoints; Overweight and Underweight are valid nuanced portfolio ratings for partial exposure changes. Do not collapse "trim", "reduce risk", "avoid adding", or "keep a tracking position" into a full Sell unless the memo actually recommends exiting or avoiding the position outright.
+- Keep tactical transaction proposals distinct from portfolio ratings. A TraderProposal may use Buy/Hold/Sell for execution, but the Portfolio Manager must restore the five-tier rating nuance when sizing, risk controls, or the debate support a partial position rather than an endpoint.
+- Do not equate a tactical TraderProposal Hold with a portfolio-rating Hold. If the research plan and risk debate support above-benchmark exposure, staged entries, or rebuilding to an overweight risk budget after triggers, the Portfolio Manager should preserve Overweight even when the immediate trade action is Hold. Choose the final rating from target exposure and thesis strength, not from the transaction verb alone.
+- Weigh evidence according to the requested investment horizon. Do not let a one-day technical move or valuation concern mechanically override already observed fundamentals, backlog/deferred revenue, margin progress, insider/customer evidence, or catalysts; explain why those positives are or are not sufficient.
+- In growth-equity debates, separate "not enough safety margin for Buy" from "thesis broken enough for Underweight/Sell". Valuation, negative FCF, leverage, heavy CapEx, or technical weakness can cap sizing and conviction, but should only drive Underweight/Sell after weighing whether realized growth, margin expansion, backlog/deferred revenue, pricing power, customer adoption, catalysts, horizon, and position controls preserve a constructive risk/reward.
+- Use the requested output language from the conversation. Keep JSON protocols valid when JSON is required, but put the full report text inside the JSON string fields."""
 
 
 def _content_to_text(content: Any) -> str:
@@ -187,6 +197,7 @@ class CodexChatModel(BaseChatModel):
             "You are the LLM backend inside TradingAgents.",
             "Do not edit files. Do not run repository inspection commands unless the user explicitly asks for codebase work.",
             "Use only the conversation and tool results supplied below for the trading analysis.",
+            _TRADING_ANALYSIS_DEPTH_INSTRUCTION,
         ]
 
         if self.tools:
@@ -209,6 +220,9 @@ If you need tool data, respond with ONLY valid JSON in this shape:
 If the supplied conversation and tool results are enough for the final answer,
 respond with ONLY valid JSON in this shape:
 {{"content":"final answer text"}}
+
+The content string must contain the complete final report requested by the
+agent prompt, not a compressed summary.
 
 Do not wrap the JSON in Markdown."""
 
@@ -377,7 +391,26 @@ class CodexStructuredChatModel:
             f"Return ONLY valid JSON for {_schema_name(self.schema)}. "
             "Do not include Markdown fences, prose, comments, or extra keys. "
             "Use the exact enum values shown in the schema, and include all "
-            "required fields.\n\nJSON Schema:\n"
+            "required fields.\n\n"
+            "Structured output is the final TradingAgents report, not a "
+            "metadata extraction step. Fill narrative string fields with "
+            "complete, evidence-rich prose. For ResearchPlan rationale and "
+            "strategic_actions, explain the bull/bear tradeoff, why the chosen "
+            "rating won, which opposing risks remain, and concrete execution "
+            "steps. For TraderProposal reasoning, include the key evidence and "
+            "execution logic rather than a one-line restatement. For "
+            "PortfolioDecision executive_summary and investment_thesis, include "
+            "a full portfolio-manager decision memo with specific evidence, "
+            "risk levels, sizing, catalysts, invalidation conditions, and time "
+            "horizon. Preserve rating-scale semantics: choose Buy/Sell only "
+            "for endpoint conviction, and choose Overweight/Underweight when "
+            "the memo supports partial exposure changes, disciplined sizing, "
+            "or tracking positions. For PortfolioDecision, set the rating from "
+            "the target exposure implied by the memo, not just from the "
+            "TraderProposal action verb. Do not shorten fields merely because "
+            "the response is JSON."
+            "\n\n"
+            f"{_TRADING_ANALYSIS_DEPTH_INSTRUCTION}\n\nJSON Schema:\n"
             f"{_schema_json(self.schema)}"
         )
         if isinstance(input, str):
