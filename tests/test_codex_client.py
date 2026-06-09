@@ -70,6 +70,14 @@ def test_codex_chat_model_instructs_full_trading_analysis_depth(
     assert "one-day technical move" in seen["input"]
     assert "not enough safety margin for Buy" in seen["input"]
     assert "realized growth, margin expansion" in seen["input"]
+    assert "12-24 month recommendations" in seen["input"]
+    assert "2-4% of the portfolio" in seen["input"]
+    assert "40-50% of the target position" in seen["input"]
+    assert "Do not reduce the first tranche below 40%" in seen["input"]
+    assert "280-300 target band" in seen["input"]
+    assert "Leopold Aschenbrenner" in seen["input"]
+    assert "deferred-revenue contract quality" in seen["input"]
+    assert "steady-state CapEx and GPU refresh-cycle risk" in seen["input"]
 
 
 def test_codex_chat_model_passes_custom_model(monkeypatch, tmp_path):
@@ -166,6 +174,8 @@ def test_codex_structured_output_returns_pydantic_model(monkeypatch, tmp_path):
     assert "Preserve rating-scale semantics" in seen["input"]
     assert "staged long-entry or add-to-exposure plan" in seen["input"]
     assert "target exposure implied by the memo" in seen["input"]
+    assert "default 12-24 month public equity horizon" in seen["input"]
+    assert "staged Overweight execution template" in seen["input"]
     assert "Do not shorten fields merely because the response is JSON" in seen["input"]
 
 

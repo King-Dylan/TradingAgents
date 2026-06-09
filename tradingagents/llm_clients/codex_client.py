@@ -36,6 +36,10 @@ _TRADING_ANALYSIS_DEPTH_INSTRUCTION = """TradingAgents output-depth contract:
 - For TraderProposal, Buy means initiating or building a long exposure program, including staged, conditional, or pullback-based entries. Do not reserve Buy only for an immediate market order. When the Research Manager recommends Buy or Overweight and gives levels for building, adding, restoring, or increasing exposure, the Trader should normally choose Buy with disciplined entry/sizing/stop details. Use Hold only when the plan truly calls for maintaining existing exposure with no planned add or reduce program.
 - Weigh evidence according to the requested investment horizon. Do not let a one-day technical move or valuation concern mechanically override already observed fundamentals, backlog/deferred revenue, margin progress, insider/customer evidence, or catalysts; explain why those positives are or are not sufficient.
 - In growth-equity debates, separate "not enough safety margin for Buy" from "thesis broken enough for Underweight/Sell". Valuation, negative FCF, leverage, heavy CapEx, or technical weakness can cap sizing and conviction, but should only drive Underweight/Sell after weighing whether realized growth, margin expansion, backlog/deferred revenue, pricing power, customer adoption, catalysts, horizon, and position controls preserve a constructive risk/reward.
+- Unless the agent prompt explicitly asks for short-term trading, treat public-equity investment memos as 12-24 month recommendations. Do not shorten an Overweight thesis to a 3-6 month tactical trade just because the latest candle is weak; use near-term technical levels as entry and risk-management triggers inside the longer horizon.
+- For an Overweight growth-equity recommendation, default to the original TradingAgents execution style: a satellite/growth allocation around 2-4% of the portfolio, staged entries instead of a full first order, an initial tranche around 40-50% of the target position when the current support zone is acceptable, additional tranches near the next support zone or the 50-day SMA, and a hard invalidation/stop near the 50-day SMA unless the prompt provides a different risk budget. Do not reduce the first tranche below 40% solely because of a one-day technical breakdown or a neutral risk analyst's caution if the final rating remains Overweight; reflect that caution through position-size caps, add-on triggers, hedges, or monitoring conditions. Use analogous levels from the report if exact prices differ.
+- For Overweight growth-equity upside targets, preserve the full bull-case target range from the evidence and debate. If the sources or debate include a 280-300 target band, do not collapse the final price target to the lower sell-side anchor merely because one source says 280; use the higher extension target, such as 300, when the final thesis is constructive but position sizing is disciplined.
+- Preserve the original debate-coverage depth. Bull, bear, risk, trader, and manager outputs should explicitly address, when source evidence is present: strategic insider ownership such as Leopold Aschenbrenner's stake, GPU pricing power and demand elasticity, Q2/Q3 earnings validation, debt maturity/refinancing structure, deferred-revenue contract quality including refund or take-or-pay terms, steady-state CapEx and GPU refresh-cycle risk, cash versus debt, revenue growth, gross margin, valuation multiples, short interest, and catalysts. If a datapoint is missing, name it as an information gap rather than omitting the topic.
 - Use the requested output language from the conversation. Keep JSON protocols valid when JSON is required, but put the full report text inside the JSON string fields."""
 
 
@@ -411,8 +415,10 @@ class CodexStructuredChatModel:
             "conditional or split across price levels; Hold is for no planned "
             "transaction. For PortfolioDecision, set the rating from the "
             "target exposure implied by the memo, not just from the "
-            "TraderProposal action verb. Do not shorten fields merely because "
-            "the response is JSON."
+            "TraderProposal action verb. Use the default 12-24 month public "
+            "equity horizon and the staged Overweight execution template "
+            "unless the prompt explicitly overrides them. Do not shorten fields "
+            "merely because the response is JSON."
             "\n\n"
             f"{_TRADING_ANALYSIS_DEPTH_INSTRUCTION}\n\nJSON Schema:\n"
             f"{_schema_json(self.schema)}"
