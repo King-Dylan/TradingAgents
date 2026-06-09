@@ -1,5 +1,5 @@
 from typing import Annotated
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
@@ -20,8 +20,14 @@ def get_YFin_data_online(
     canonical = normalize_symbol(symbol)
     ticker = yf.Ticker(canonical)
 
-    # Fetch historical data for the specified date range
-    data = yf_retry(lambda: ticker.history(start=start_date, end=end_date))
+    # yfinance treats `end` as exclusive. Add one calendar day so a completed
+    # analysis-date session is included in the returned OHLCV range.
+    yfinance_end_date = (
+        datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+    ).strftime("%Y-%m-%d")
+
+    # Fetch historical data for the specified date range.
+    data = yf_retry(lambda: ticker.history(start=start_date, end=yfinance_end_date))
 
     # Empty result means the symbol is unknown/delisted. Raise a typed error
     # instead of returning prose: the routing layer turns it into a single
