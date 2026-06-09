@@ -32,7 +32,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
-from cli.stats_handler import StatsCallbackHandler
+from cli.stats_handler import StatsCallbackHandler, ToolAuditCallbackHandler
 
 console = Console()
 
@@ -1007,8 +1007,19 @@ def run_analysis(checkpoint: bool = False):
     config["output_language"] = selections.get("output_language", "English")
     config["checkpoint_enabled"] = checkpoint
 
-    # Create stats callback handler for tracking LLM/tool calls
+    # Create result directory before graph setup so callbacks can audit into it.
+    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
+    results_dir.mkdir(parents=True, exist_ok=True)
+    report_dir = results_dir / "reports"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    log_file = results_dir / "message_tool.log"
+    log_file.touch(exist_ok=True)
+    tool_audit_file = results_dir / "tool_audit.jsonl"
+
+    # Create callback handlers for tracking LLM/tool calls and data outcomes.
     stats_handler = StatsCallbackHandler()
+    tool_audit_handler = ToolAuditCallbackHandler(tool_audit_file)
+    callbacks = [stats_handler, tool_audit_handler]
 
     # Normalize analyst selection to predefined order (selection is a 'set', order is fixed)
     selected_set = {analyst.value for analyst in selections["analysts"]}
@@ -1024,7 +1035,7 @@ def run_analysis(checkpoint: bool = False):
         selected_analyst_keys,
         config=config,
         debug=True,
-        callbacks=[stats_handler],
+        callbacks=callbacks,
     )
 
     # Initialize message buffer with selected analysts
@@ -1032,14 +1043,6 @@ def run_analysis(checkpoint: bool = False):
 
     # Track start time for elapsed display
     start_time = time.time()
-
-    # Create result directory
-    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
-    results_dir.mkdir(parents=True, exist_ok=True)
-    report_dir = results_dir / "reports"
-    report_dir.mkdir(parents=True, exist_ok=True)
-    log_file = results_dir / "message_tool.log"
-    log_file.touch(exist_ok=True)
 
     def save_message_decorator(obj, func_name):
         func = getattr(obj, func_name)
@@ -1128,7 +1131,7 @@ def run_analysis(checkpoint: bool = False):
         )
         # Pass callbacks to graph config for tool execution tracking
         # (LLM tracking is handled separately via LLM constructor)
-        args = graph.propagator.get_graph_args(callbacks=[stats_handler])
+        args = graph.propagator.get_graph_args(callbacks=callbacks)
 
         # Stream the analysis
         trace = []
@@ -1250,6 +1253,7 @@ def run_analysis(checkpoint: bool = False):
             "System", f"Completed analysis for {selections['analysis_date']}"
         )
         message_buffer.add_message("System", analyst_wall_time_tracker.format_summary())
+        message_buffer.add_message("System", tool_audit_handler.format_summary())
 
         # Update final report sections
         for section in message_buffer.report_sections.keys():
@@ -1261,6 +1265,8 @@ def run_analysis(checkpoint: bool = False):
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
+    console.print(f"[dim]{tool_audit_handler.format_summary()}[/dim]")
+    console.print(f"[dim]Tool audit log: {tool_audit_file.resolve()}[/dim]")
 
     # Prompt to save report
     save_choice = typer.prompt("Save report?", default="Y").strip().upper()
