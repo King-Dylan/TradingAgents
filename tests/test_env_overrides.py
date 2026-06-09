@@ -20,9 +20,9 @@ def _reload_with_env(monkeypatch, **overrides):
 
 def test_no_env_uses_built_in_defaults(monkeypatch):
     dc = _reload_with_env(monkeypatch)
-    assert dc.DEFAULT_CONFIG["llm_provider"] == "openai"
-    assert dc.DEFAULT_CONFIG["deep_think_llm"] == "gpt-5.5"
-    assert dc.DEFAULT_CONFIG["quick_think_llm"] == "gpt-5.4-mini"
+    assert dc.DEFAULT_CONFIG["llm_provider"] == "codex"
+    assert dc.DEFAULT_CONFIG["deep_think_llm"] == "default"
+    assert dc.DEFAULT_CONFIG["quick_think_llm"] == "default"
     assert dc.DEFAULT_CONFIG["backend_url"] is None
     assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 1
     assert dc.DEFAULT_CONFIG["checkpoint_enabled"] is False
@@ -42,6 +42,25 @@ def test_string_overrides(monkeypatch):
     assert dc.DEFAULT_CONFIG["quick_think_llm"] == "gemini-3-flash-preview"
     assert dc.DEFAULT_CONFIG["backend_url"] == "https://example.invalid/v1"
     assert dc.DEFAULT_CONFIG["output_language"] == "Chinese"
+
+
+def test_codex_overrides(monkeypatch):
+    dc = _reload_with_env(
+        monkeypatch,
+        TRADINGAGENTS_CODEX_COMMAND="/opt/homebrew/bin/codex",
+        TRADINGAGENTS_CODEX_TIMEOUT="30",
+        TRADINGAGENTS_CODEX_SANDBOX="workspace-write",
+        TRADINGAGENTS_CODEX_PROFILE="trading",
+        TRADINGAGENTS_CODEX_REASONING_EFFORT="xhigh",
+        TRADINGAGENTS_CODEX_EXTRA_ARGS="--search",
+    )
+    assert dc.DEFAULT_CONFIG["codex_command"] == "/opt/homebrew/bin/codex"
+    assert dc.DEFAULT_CONFIG["codex_timeout"] == 30
+    assert isinstance(dc.DEFAULT_CONFIG["codex_timeout"], int)
+    assert dc.DEFAULT_CONFIG["codex_sandbox"] == "workspace-write"
+    assert dc.DEFAULT_CONFIG["codex_profile"] == "trading"
+    assert dc.DEFAULT_CONFIG["codex_reasoning_effort"] == "xhigh"
+    assert dc.DEFAULT_CONFIG["codex_extra_args"] == "--search"
 
 
 def test_int_coercion(monkeypatch):
@@ -75,7 +94,7 @@ def test_empty_env_value_is_passthrough(monkeypatch):
         TRADINGAGENTS_LLM_PROVIDER="",
         TRADINGAGENTS_MAX_DEBATE_ROUNDS="",
     )
-    assert dc.DEFAULT_CONFIG["llm_provider"] == "openai"
+    assert dc.DEFAULT_CONFIG["llm_provider"] == "codex"
     assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 1
 
 

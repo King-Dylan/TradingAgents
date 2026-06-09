@@ -68,3 +68,30 @@ class TestCleanDataframeAcrossVersions:
         df["close_5_sma"]  # triggers calculation
         assert "close_5_sma" in df.columns
         assert df["close_5_sma"].notna().any()
+
+
+@pytest.mark.unit
+class TestLoadOhlcvDownloadWindow:
+    def test_download_end_includes_current_day(self, monkeypatch, tmp_path):
+        """yfinance's `end` is exclusive, so same-day analysis needs tomorrow."""
+        from tradingagents.dataflows.config import set_config
+
+        captured = {}
+
+        class FixedTimestamp(pd.Timestamp):
+            @classmethod
+            def today(cls):
+                return cls("2026-06-08 19:00:00")
+
+        def fake_download(*args, **kwargs):
+            captured.update(kwargs)
+            return _ohlcv("Date").set_index("Date")
+
+        monkeypatch.setattr(su.pd, "Timestamp", FixedTimestamp)
+        monkeypatch.setattr(su.yf, "download", fake_download)
+        set_config({"data_cache_dir": str(tmp_path)})
+
+        out = su.load_ohlcv("NBIS", "2026-06-08")
+
+        assert captured["end"] == "2026-06-09"
+        assert out["Date"].max() == pd.Timestamp("2026-04-14")

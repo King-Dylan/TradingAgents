@@ -153,6 +153,15 @@ export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
+This branch defaults to the local Codex CLI provider, so LLM analysis uses your
+installed and authenticated `codex` command instead of per-token API calls. Run
+`codex login` first if the CLI is not already authenticated. You can still
+switch back to OpenAI or another hosted provider with `TRADINGAGENTS_LLM_PROVIDER`
+or the Python config below. For Codex reasoning effort, use
+`TRADINGAGENTS_CODEX_REASONING_EFFORT=xhigh` or set `codex_reasoning_effort`;
+`minimal`, `low`, `medium`, `high`, and `xhigh` are also accepted as Codex model
+aliases in the CLI and are forwarded as reasoning effort instead of `-m`.
+
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
@@ -223,9 +232,10 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, qwen-cn, glm, glm-cn, minimax, minimax-cn, openrouter, ollama, azure
-config["deep_think_llm"] = "gpt-5.5"     # Model for complex reasoning
-config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
+config["llm_provider"] = "codex"         # codex, openai, google, anthropic, xai, deepseek, qwen, qwen-cn, glm, glm-cn, minimax, minimax-cn, openrouter, ollama, azure
+config["deep_think_llm"] = "default"     # Codex CLI default model; set a model ID to pass `codex exec -m`
+config["quick_think_llm"] = "default"    # Model for quick tasks
+config["codex_reasoning_effort"] = "xhigh"  # Optional: minimal, low, medium, high, xhigh
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)
