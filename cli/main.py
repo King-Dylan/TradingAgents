@@ -44,6 +44,31 @@ app = typer.Typer(
 )
 
 
+ANALYST_REPORT_SECTIONS = (
+    "market_report",
+    "sentiment_report",
+    "news_report",
+    "fundamentals_report",
+)
+
+
+def backfill_empty_analyst_reports(final_state: dict, report_sections: dict) -> dict:
+    """Preserve analyst reports captured from streamed chunks.
+
+    LangGraph streaming can emit later state snapshots where an analyst report
+    field is present but blank even though the live display already captured
+    the completed report from that analyst's chunk. Do not let those blank
+    values erase saved report sections.
+    """
+    for section in ANALYST_REPORT_SECTIONS:
+        if final_state.get(section):
+            continue
+        displayed = report_sections.get(section)
+        if isinstance(displayed, str) and displayed.strip():
+            final_state[section] = displayed
+    return final_state
+
+
 # Create a deque to store recent messages with a maximum length
 class MessageBuffer:
     # Fixed teams that always run (not user-selectable)
@@ -1244,6 +1269,7 @@ def run_analysis(checkpoint: bool = False):
         final_state = {}
         for chunk in trace:
             final_state.update(chunk)
+        backfill_empty_analyst_reports(final_state, message_buffer.report_sections)
         decision = graph.process_signal(final_state["final_trade_decision"])
 
         # Update all agent statuses to completed
@@ -1258,7 +1284,7 @@ def run_analysis(checkpoint: bool = False):
 
         # Update final report sections
         for section in message_buffer.report_sections.keys():
-            if section in final_state:
+            if final_state.get(section):
                 message_buffer.update_report_section(section, final_state[section])
 
         update_display(layout, stats_handler=stats_handler, start_time=start_time)

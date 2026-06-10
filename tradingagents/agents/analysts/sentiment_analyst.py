@@ -84,8 +84,7 @@ def create_sentiment_analyst(llm):
                 (
                     "system",
                     "You are a helpful AI assistant, collaborating with other assistants."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
+                    " Do not output a portfolio rating or FINAL TRANSACTION PROPOSAL; that is reserved for the Trader and Portfolio Manager."
                     "\n{system_message}\n"
                     "For your reference, the current date is {current_date}. {instrument_context}",
                 ),
