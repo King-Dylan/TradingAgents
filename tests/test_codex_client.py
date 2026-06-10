@@ -186,6 +186,7 @@ def test_codex_structured_output_returns_pydantic_model(monkeypatch, tmp_path):
     assert "Preserve 1-3 month or 3-6 month horizons" in seen["input"]
     assert "12-24 month horizon and staged Overweight execution template only" in seen["input"]
     assert "MRVL/NXPI-style Hold/Hold baselines" in seen["input"]
+    assert "do not omit Price Target merely because there is no active Buy program" in seen["input"]
     assert "Do not shorten fields merely because the response is JSON" in seen["input"]
     assert "Use the default 12-24 month public equity horizon" not in seen["input"]
 

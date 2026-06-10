@@ -198,7 +198,12 @@ class PortfolioDecision(BaseModel):
     )
     price_target: Optional[float] = Field(
         default=None,
-        description="Optional target price in the instrument's quote currency.",
+        description=(
+            "Target price or neutral fair-value anchor in the instrument's quote "
+            "currency. Include a value for Hold decisions when the debate "
+            "contains a current-price anchor, near-term target, or key "
+            "decision level; do not omit it merely because the action is Hold."
+        ),
     )
     time_horizon: Optional[str] = Field(
         default=None,

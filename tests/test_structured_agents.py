@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from tradingagents.agents.analysts.sentiment_analyst import create_sentiment_analyst
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.agents.schemas import (
+    PortfolioDecision,
     PortfolioRating,
     ResearchPlan,
     SentimentBand,
@@ -90,6 +91,15 @@ class TestRenderResearchPlan:
             )
             md = render_research_plan(p)
             assert f"**Recommendation**: {rating.value}" in md
+
+
+@pytest.mark.unit
+class TestPortfolioDecisionSchema:
+    def test_price_target_description_requests_hold_anchor(self):
+        schema = PortfolioDecision.model_json_schema()
+        description = schema["properties"]["price_target"]["description"]
+        assert "Include a value for Hold decisions" in description
+        assert "do not omit it merely because the action is Hold" in description
 
 
 # ---------------------------------------------------------------------------
