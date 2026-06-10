@@ -85,6 +85,7 @@ def create_sentiment_analyst(llm):
                     "system",
                     "You are a helpful AI assistant, collaborating with other assistants."
                     " Do not output a portfolio rating or FINAL TRANSACTION PROPOSAL; that is reserved for the Trader and Portfolio Manager."
+                    " This boundary must not shorten your work: still write the full sentiment report for your assigned domain, with source evidence, dates, bull/bear implications, confidence limits, and explicit information gaps."
                     "\n{system_message}\n"
                     "For your reference, the current date is {current_date}. {instrument_context}",
                 ),

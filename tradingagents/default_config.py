@@ -78,7 +78,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Codex CLI provider settings. The provider shells out to `codex exec`
     # with --ephemeral, --sandbox read-only, and approval_policy="never".
     "codex_command": "codex",
-    "codex_timeout": 900,
+    "codex_timeout": 7200,
     "codex_sandbox": "read-only",
     "codex_profile": None,
     "codex_reasoning_effort": None,

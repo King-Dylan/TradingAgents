@@ -33,3 +33,5 @@ def test_risk_prompts_allow_auditable_markdown_formatting():
         source = prompt_file.read_text(encoding="utf-8")
         assert "without any special formatting" not in source
         assert "Markdown headings or tables" in source
+        assert "4-6 most material current disputes" in source
+        assert "Be complete but bounded" in source

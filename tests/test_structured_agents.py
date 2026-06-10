@@ -161,6 +161,10 @@ class TestTraderAgent:
         # The investment plan is in the user message of the captured prompt.
         prompt = captured["prompt"]
         assert any("Proposed Investment Plan" in m["content"] for m in prompt)
+        system_text = prompt[0]["content"]
+        assert "staged, partial, pullback-based" in system_text
+        assert "classify that as Buy" in system_text
+        assert "Use Hold only when the plan calls for maintaining or watching" in system_text
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain_response = (
@@ -236,6 +240,11 @@ class TestResearchManagerAgent:
         prompt = captured["prompt"]
         for tier in ("Buy", "Overweight", "Hold", "Underweight", "Sell"):
             assert f"**{tier}**" in prompt, f"missing {tier} in prompt"
+        assert "target portfolio exposure over the supported public-equity investment horizon" in prompt
+        assert "Do not collapse a strategic Overweight into Hold" in prompt
+        assert "Overweight is appropriate when realized fundamentals" in prompt
+        assert "Hold is appropriate when both the near-term setup and the strategic evidence" in prompt
+        assert "separate near-term resistance or squeeze zones from the strategic upside target" in prompt
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain_response = "**Recommendation**: Sell\n\n**Rationale**: ...\n\n**Strategic Actions**: ..."

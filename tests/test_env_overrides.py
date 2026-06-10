@@ -26,6 +26,7 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
     assert dc.DEFAULT_CONFIG["backend_url"] is None
     assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 1
     assert dc.DEFAULT_CONFIG["checkpoint_enabled"] is False
+    assert dc.DEFAULT_CONFIG["codex_timeout"] == 7200
     assert dc.DEFAULT_CONFIG["obsidian_auto_export"] is False
     assert dc.DEFAULT_CONFIG["obsidian_vault_dir"] is None
     assert dc.DEFAULT_CONFIG["obsidian_tradingagents_dir"] == "TradingAgents"

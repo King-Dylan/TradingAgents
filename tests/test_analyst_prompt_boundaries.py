@@ -16,3 +16,14 @@ def test_analyst_prompts_do_not_invite_trader_stop_signal():
         source = path.read_text(encoding="utf-8")
         assert "prefix your response with FINAL TRANSACTION PROPOSAL" not in source
         assert "Do not output a portfolio rating or FINAL TRANSACTION PROPOSAL" in source
+        assert "This boundary must not shorten your work" in source
+
+
+def test_fundamentals_prompt_requires_full_report_not_disclaimer():
+    source = Path("tradingagents/agents/analysts/fundamentals_analyst.py").read_text(
+        encoding="utf-8"
+    )
+    assert "you must synthesize every available tool result" in source
+    assert "instead of returning a disclaimer" in source
+    assert "revenue, gross profit or margin" in source
+    assert "cash, debt, liquidity ratios" in source

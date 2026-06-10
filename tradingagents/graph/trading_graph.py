@@ -158,7 +158,7 @@ class TradingAgentsGraph:
 
         elif provider == "codex":
             kwargs["command"] = self.config.get("codex_command", "codex")
-            kwargs["timeout"] = self.config.get("codex_timeout", 900)
+            kwargs["timeout"] = self.config.get("codex_timeout", 7200)
             kwargs["sandbox"] = self.config.get("codex_sandbox", "read-only")
             if self.config.get("codex_profile"):
                 kwargs["profile"] = self.config["codex_profile"]

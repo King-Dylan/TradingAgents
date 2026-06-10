@@ -35,6 +35,7 @@ def create_news_analyst(llm):
                     " If you are unable to fully answer, that's OK; another assistant with different tools"
                     " will help where you left off. Execute what you can to make progress."
                     " Do not output a portfolio rating or FINAL TRANSACTION PROPOSAL; that is reserved for the Trader and Portfolio Manager."
+                    " This boundary must not shorten your work: still write the full news and macro report for your assigned domain, with evidence, dates, source context, bull/bear implications, and explicit information gaps."
                     " You have access to the following tools: {tool_names}.\n{system_message}"
                     "For your reference, the current date is {current_date}. {instrument_context}",
                 ),
