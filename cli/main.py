@@ -29,6 +29,7 @@ from tradingagents.graph.analyst_execution import (
     sync_analyst_tracker_from_chunk,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.obsidian_export import export_report_to_obsidian
 from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
@@ -1282,6 +1283,16 @@ def run_analysis(checkpoint: bool = False):
             report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
+            obsidian_result = export_report_to_obsidian(
+                final_state,
+                selections["ticker"],
+                report_file,
+                config,
+            )
+            if obsidian_result:
+                console.print(
+                    f"  [dim]Obsidian copy:[/dim] {obsidian_result.report_path}"
+                )
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
 

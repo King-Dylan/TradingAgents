@@ -26,6 +26,9 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
     assert dc.DEFAULT_CONFIG["backend_url"] is None
     assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 1
     assert dc.DEFAULT_CONFIG["checkpoint_enabled"] is False
+    assert dc.DEFAULT_CONFIG["obsidian_auto_export"] is False
+    assert dc.DEFAULT_CONFIG["obsidian_vault_dir"] is None
+    assert dc.DEFAULT_CONFIG["obsidian_tradingagents_dir"] == "TradingAgents"
 
 
 def test_string_overrides(monkeypatch):
@@ -61,6 +64,20 @@ def test_codex_overrides(monkeypatch):
     assert dc.DEFAULT_CONFIG["codex_profile"] == "trading"
     assert dc.DEFAULT_CONFIG["codex_reasoning_effort"] == "xhigh"
     assert dc.DEFAULT_CONFIG["codex_extra_args"] == "--search"
+
+
+def test_obsidian_overrides(monkeypatch):
+    dc = _reload_with_env(
+        monkeypatch,
+        TRADINGAGENTS_OBSIDIAN_AUTO_EXPORT="true",
+        TRADINGAGENTS_OBSIDIAN_VAULT_DIR="/tmp/obsidian-vault",
+        TRADINGAGENTS_OBSIDIAN_TRADINGAGENTS_DIR="TradingAgents Research",
+        TRADINGAGENTS_OBSIDIAN_SUMMARY_PAGE="Stocks Overview.md",
+    )
+    assert dc.DEFAULT_CONFIG["obsidian_auto_export"] is True
+    assert dc.DEFAULT_CONFIG["obsidian_vault_dir"] == "/tmp/obsidian-vault"
+    assert dc.DEFAULT_CONFIG["obsidian_tradingagents_dir"] == "TradingAgents Research"
+    assert dc.DEFAULT_CONFIG["obsidian_summary_page"] == "Stocks Overview.md"
 
 
 def test_int_coercion(monkeypatch):

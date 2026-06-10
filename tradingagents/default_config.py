@@ -24,6 +24,10 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_CODEX_PROFILE":        "codex_profile",
     "TRADINGAGENTS_CODEX_REASONING_EFFORT": "codex_reasoning_effort",
     "TRADINGAGENTS_CODEX_EXTRA_ARGS":     "codex_extra_args",
+    "TRADINGAGENTS_OBSIDIAN_AUTO_EXPORT": "obsidian_auto_export",
+    "TRADINGAGENTS_OBSIDIAN_VAULT_DIR":   "obsidian_vault_dir",
+    "TRADINGAGENTS_OBSIDIAN_TRADINGAGENTS_DIR": "obsidian_tradingagents_dir",
+    "TRADINGAGENTS_OBSIDIAN_SUMMARY_PAGE": "obsidian_summary_page",
 }
 
 
@@ -79,6 +83,12 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "codex_profile": None,
     "codex_reasoning_effort": None,
     "codex_extra_args": "",
+    # Obsidian export settings. When enabled, the CLI mirrors each saved report
+    # into the configured vault and updates the TradingAgents summary pages.
+    "obsidian_auto_export": False,
+    "obsidian_vault_dir": None,
+    "obsidian_tradingagents_dir": "TradingAgents",
+    "obsidian_summary_page": "股票分析总览.md",
     # Sampling temperature, forwarded to every provider when set. None leaves
     # each provider at its own default. Lower values reduce run-to-run
     # variation on models that honor it; reasoning models largely ignore it
