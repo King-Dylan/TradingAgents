@@ -1,7 +1,8 @@
-"""Tests for the Reddit RSS/Atom fallback when the JSON endpoint 403s (#862)."""
+"""Tests for Reddit OAuth JSON and RSS/Atom fallback handling (#862)."""
 
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 from urllib.error import HTTPError
 
@@ -77,13 +78,66 @@ class TestRssFallbackParsing:
 
 @pytest.mark.unit
 class TestJsonFallsBackToRss:
-    def test_403_triggers_rss(self):
+    def setup_method(self):
+        reddit._TOKEN_CACHE.clear()
+
+    def test_without_oauth_credentials_uses_rss_directly(self, monkeypatch):
+        monkeypatch.delenv("REDDIT_CLIENT_ID", raising=False)
+        monkeypatch.delenv("REDDIT_CLIENT_SECRET", raising=False)
+        with patch.object(reddit, "urlopen") as urlopen, \
+             patch.object(reddit, "_fetch_subreddit_rss", return_value=[{"title": "x", "source": "rss", "score": None, "num_comments": None, "created_utc": None, "selftext": ""}]) as rss:
+            out = reddit._fetch_subreddit("NVDA", "stocks", 5, 5.0)
+        urlopen.assert_not_called()
+        rss.assert_called_once()
+        assert out and out[0]["source"] == "rss"
+
+    def test_oauth_403_triggers_rss(self, monkeypatch):
+        monkeypatch.setenv("REDDIT_CLIENT_ID", "client")
+        monkeypatch.setenv("REDDIT_CLIENT_SECRET", "secret")
+        reddit._TOKEN_CACHE["access_token"] = "token"
+        reddit._TOKEN_CACHE["expires_at"] = reddit.time.time() + 3600
         err = HTTPError("url", 403, "Blocked", {}, None)
         with patch.object(reddit, "urlopen", side_effect=err), \
              patch.object(reddit, "_fetch_subreddit_rss", return_value=[{"title": "x", "source": "rss", "score": None, "num_comments": None, "created_utc": None, "selftext": ""}]) as rss:
             out = reddit._fetch_subreddit("NVDA", "stocks", 5, 5.0)
         rss.assert_called_once()
         assert out and out[0]["source"] == "rss"
+
+    def test_oauth_json_search_returns_posts(self, monkeypatch):
+        monkeypatch.setenv("REDDIT_CLIENT_ID", "client")
+        monkeypatch.setenv("REDDIT_CLIENT_SECRET", "secret")
+
+        class _Resp:
+            def __init__(self, payload):
+                self.payload = payload
+            def __enter__(self):
+                return self
+            def __exit__(self, *a):
+                return False
+            def read(self):
+                return json.dumps(self.payload).encode("utf-8")
+
+        token_payload = {"access_token": "token", "expires_in": 3600}
+        search_payload = {
+            "data": {
+                "children": [
+                    {
+                        "data": {
+                            "title": "NVDA JSON post",
+                            "score": 42,
+                            "num_comments": 7,
+                            "created_utc": 1770000000,
+                            "selftext": "body",
+                        }
+                    }
+                ]
+            }
+        }
+        with patch.object(reddit, "urlopen", side_effect=[_Resp(token_payload), _Resp(search_payload)]) as urlopen:
+            out = reddit._fetch_subreddit("NVDA", "stocks", 5, 5.0)
+        assert urlopen.call_count == 2
+        assert out[0]["title"] == "NVDA JSON post"
+        assert out[0]["score"] == 42
 
 
 @pytest.mark.unit

@@ -18,6 +18,12 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
+    "TRADINGAGENTS_CODEX_COMMAND":        "codex_command",
+    "TRADINGAGENTS_CODEX_TIMEOUT":        "codex_timeout",
+    "TRADINGAGENTS_CODEX_SANDBOX":        "codex_sandbox",
+    "TRADINGAGENTS_CODEX_PROFILE":        "codex_profile",
+    "TRADINGAGENTS_CODEX_REASONING_EFFORT": "codex_reasoning_effort",
+    "TRADINGAGENTS_CODEX_EXTRA_ARGS":     "codex_extra_args",
 }
 
 
@@ -52,9 +58,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Pending entries are never pruned. None disables rotation entirely.
     "memory_log_max_entries": None,
     # LLM settings
-    "llm_provider": "openai",
-    "deep_think_llm": "gpt-5.5",
-    "quick_think_llm": "gpt-5.4-mini",
+    "llm_provider": "codex",
+    "deep_think_llm": "default",
+    "quick_think_llm": "default",
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
     # The CLI overrides this per provider when the user picks one. Keeping a
@@ -65,6 +71,14 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
     "anthropic_effort": None,           # "high", "medium", "low"
+    # Codex CLI provider settings. The provider shells out to `codex exec`
+    # with --ephemeral, --sandbox read-only, and approval_policy="never".
+    "codex_command": "codex",
+    "codex_timeout": 900,
+    "codex_sandbox": "read-only",
+    "codex_profile": None,
+    "codex_reasoning_effort": None,
+    "codex_extra_args": "",
     # Sampling temperature, forwarded to every provider when set. None leaves
     # each provider at its own default. Lower values reduce run-to-run
     # variation on models that honor it; reasoning models largely ignore it

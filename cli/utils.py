@@ -289,6 +289,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
+        ("Codex CLI", "codex", None),
         ("Ollama", "ollama", ollama_url),
     ]
 

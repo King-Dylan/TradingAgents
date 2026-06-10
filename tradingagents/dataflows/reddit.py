@@ -1,25 +1,28 @@
 """Reddit search fetcher for ticker-specific discussion posts.
 
-Primary path is Reddit's public JSON search endpoint
-(``reddit.com/r/{sub}/search.json``), which carries the richest data
-(score, comment count, body). Reddit's WAF increasingly returns
-``HTTP 403 Blocked`` on that endpoint (issue #862), so when the JSON request
-fails we transparently fall back to the public Atom/RSS search feed
-(``/search.rss``). The RSS feed is gated less aggressively and serves the
-same descriptive User-Agent we already send; the fallback lacks score /
+When Reddit OAuth app credentials are configured, the primary path is the
+authenticated JSON search endpoint (``oauth.reddit.com/r/{sub}/search.json``),
+which carries the richest data (score, comment count, body). Reddit's
+unauthenticated public JSON endpoint increasingly returns ``HTTP 403 Blocked``
+(issue #862), so anonymous runs skip that noisy dead path and use the public
+Atom/RSS search feed (``/search.rss``) directly. The RSS fallback lacks score /
 comment counts, so RSS-sourced posts are marked and the formatter omits those
 metrics rather than printing fake zeros.
 
-No API key required either way. Returns formatted plaintext blocks ready for
-prompt injection and degrades gracefully — returns a placeholder string
-rather than raising, so callers never special-case missing data.
+No API key is required for RSS. Set ``REDDIT_CLIENT_ID`` and
+``REDDIT_CLIENT_SECRET`` to restore JSON score/comment metadata. Returns
+formatted plaintext blocks ready for prompt injection and degrades gracefully —
+returns a placeholder string rather than raising, so callers never special-case
+missing data.
 """
 
 from __future__ import annotations
 
+import base64
 import html
 import json
 import logging
+import os
 import re
 import time
 import xml.etree.ElementTree as ET
@@ -31,7 +34,8 @@ from urllib.request import Request, urlopen
 
 logger = logging.getLogger(__name__)
 
-_API = "https://www.reddit.com/r/{sub}/search.json?{qs}"
+_OAUTH_API = "https://oauth.reddit.com/r/{sub}/search.json?{qs}"
+_OAUTH_TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
 _RSS = "https://www.reddit.com/r/{sub}/search.rss?{qs}"
 # A descriptive, identified User-Agent (per Reddit's API etiquette). Reddit
 # blocks generic/anonymous tokens like bare "Mozilla/5.0" or "curl/…" but
@@ -39,6 +43,7 @@ _RSS = "https://www.reddit.com/r/{sub}/search.rss?{qs}"
 # JSON search endpoint 403s, so no browser-spoofing is needed.
 _UA = "tradingagents/0.2 (+https://github.com/TauricResearch/TradingAgents)"
 _ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
+_TOKEN_CACHE: dict[str, float | str] = {}
 
 # Default subreddits ordered roughly by signal density for ticker-specific
 # discussion. wallstreetbets has the most volume but most noise; stocks /
@@ -54,6 +59,59 @@ def _search_qs(ticker: str, limit: int) -> str:
         "t": "week",  # last 7 days
         "limit": limit,
     })
+
+
+def _user_agent() -> str:
+    return os.environ.get("REDDIT_USER_AGENT") or _UA
+
+
+def _reddit_credentials() -> tuple[str, str] | None:
+    client_id = os.environ.get("REDDIT_CLIENT_ID")
+    client_secret = os.environ.get("REDDIT_CLIENT_SECRET")
+    if client_id and client_secret:
+        return client_id, client_secret
+    return None
+
+
+def _get_oauth_token(timeout: float) -> str | None:
+    """Return a cached Reddit application OAuth token when configured."""
+    token = _TOKEN_CACHE.get("access_token")
+    expires_at = float(_TOKEN_CACHE.get("expires_at") or 0)
+    if isinstance(token, str) and time.time() < expires_at - 60:
+        return token
+
+    credentials = _reddit_credentials()
+    if not credentials:
+        return None
+
+    client_id, client_secret = credentials
+    basic = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+    data = urlencode({"grant_type": "client_credentials"}).encode()
+    req = Request(
+        _OAUTH_TOKEN_URL,
+        data=data,
+        headers={
+            "Authorization": f"Basic {basic}",
+            "User-Agent": _user_agent(),
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+    )
+    try:
+        with urlopen(req, timeout=timeout) as resp:
+            payload = json.loads(resp.read())
+    except (HTTPError, URLError, json.JSONDecodeError, TimeoutError) as exc:
+        logger.warning("Reddit OAuth token fetch failed: %s", exc)
+        return None
+
+    access_token = payload.get("access_token")
+    if not isinstance(access_token, str) or not access_token:
+        logger.warning("Reddit OAuth token response did not include access_token")
+        return None
+
+    expires_in = float(payload.get("expires_in") or 3600)
+    _TOKEN_CACHE["access_token"] = access_token
+    _TOKEN_CACHE["expires_at"] = time.time() + expires_in
+    return access_token
 
 
 def _iso_to_timestamp(iso_str: Optional[str]) -> Optional[float]:
@@ -90,7 +148,7 @@ def _fetch_subreddit_rss(
     post is tagged ``source="rss"`` for honest display.
     """
     url = _RSS.format(sub=sub, qs=_search_qs(ticker, limit))
-    req = Request(url, headers={"User-Agent": _UA})
+    req = Request(url, headers={"User-Agent": _user_agent()})
     try:
         with urlopen(req, timeout=timeout) as resp:
             root = ET.fromstring(resp.read())
@@ -122,8 +180,24 @@ def _fetch_subreddit(
     limit: int,
     timeout: float,
 ) -> list[dict]:
-    url = _API.format(sub=sub, qs=_search_qs(ticker, limit))
-    req = Request(url, headers={"User-Agent": _UA, "Accept": "application/json"})
+    token = _get_oauth_token(timeout)
+    if not token:
+        logger.debug(
+            "Reddit OAuth unavailable; using RSS feed for r/%s · %s.",
+            sub,
+            ticker,
+        )
+        return _fetch_subreddit_rss(ticker, sub, limit, timeout)
+
+    url = _OAUTH_API.format(sub=sub, qs=_search_qs(ticker, limit))
+    req = Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "User-Agent": _user_agent(),
+            "Accept": "application/json",
+        },
+    )
     try:
         with urlopen(req, timeout=timeout) as resp:
             payload = json.loads(resp.read())
@@ -131,7 +205,7 @@ def _fetch_subreddit(
         return [c.get("data", {}) for c in children if isinstance(c, dict)]
     except (HTTPError, URLError, json.JSONDecodeError, TimeoutError) as exc:
         logger.warning(
-            "Reddit JSON fetch failed for r/%s · %s: %s — falling back to RSS feed.",
+            "Reddit OAuth JSON fetch failed for r/%s · %s: %s — falling back to RSS feed.",
             sub, ticker, exc,
         )
         return _fetch_subreddit_rss(ticker, sub, limit, timeout)

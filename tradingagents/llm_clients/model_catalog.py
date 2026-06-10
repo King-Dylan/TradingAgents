@@ -175,6 +175,20 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    "codex": {
+        "quick": [
+            ("Codex CLI default", "default"),
+            ("Codex reasoning xhigh", "xhigh"),
+            ("Codex reasoning high", "high"),
+            ("Custom Codex model", "custom"),
+        ],
+        "deep": [
+            ("Codex CLI default", "default"),
+            ("Codex reasoning xhigh", "xhigh"),
+            ("Codex reasoning high", "high"),
+            ("Custom Codex model", "custom"),
+        ],
+    },
 }
 
 

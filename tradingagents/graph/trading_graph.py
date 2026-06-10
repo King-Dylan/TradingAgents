@@ -32,6 +32,7 @@ from tradingagents.agents.utils.agent_utils import (
     resolve_instrument_identity,
     get_stock_data,
     get_indicators,
+    get_verified_market_snapshot,
     get_fundamentals,
     get_balance_sheet,
     get_cashflow,
@@ -155,6 +156,18 @@ class TradingAgentsGraph:
             if effort:
                 kwargs["effort"] = effort
 
+        elif provider == "codex":
+            kwargs["command"] = self.config.get("codex_command", "codex")
+            kwargs["timeout"] = self.config.get("codex_timeout", 900)
+            kwargs["sandbox"] = self.config.get("codex_sandbox", "read-only")
+            if self.config.get("codex_profile"):
+                kwargs["profile"] = self.config["codex_profile"]
+            if self.config.get("codex_reasoning_effort"):
+                kwargs["reasoning_effort"] = self.config["codex_reasoning_effort"]
+            if self.config.get("codex_extra_args"):
+                kwargs["extra_args"] = self.config["codex_extra_args"]
+            kwargs["working_dir"] = self.config.get("project_dir") or os.getcwd()
+
         # Sampling temperature is cross-provider: forward it whenever set.
         # float() here so a value coming from a TRADINGAGENTS_TEMPERATURE env
         # string ("0.2") works the same as a programmatic float.
@@ -173,6 +186,8 @@ class TradingAgentsGraph:
                     get_stock_data,
                     # Technical indicators
                     get_indicators,
+                    # Verified OHLCV/indicator snapshot used by market analyst
+                    get_verified_market_snapshot,
                 ]
             ),
             "social": ToolNode(
