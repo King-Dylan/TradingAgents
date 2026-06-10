@@ -3,6 +3,15 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
 )
 
+RESEARCH_DEBATE_CONTRACT = """
+Debate output contract:
+- Do not write a generic standalone memo. Treat the debate as an issue-by-issue cross-examination.
+- If this is the opening round, name the core disputed issues that the bear side must answer.
+- If prior bear arguments exist, respond to their strongest claims one by one. For each disputed issue, include: bear claim, your rebuttal, evidence or number, remaining uncertainty, and why your side still wins or concedes that issue.
+- Preserve concrete contested topics from the history instead of merging them into a broad summary. When the debate is mature, include a compact scorecard/table of key issues and which side has the stronger evidence.
+- Keep the tone conversational, but use clear Markdown headings or tables when they make the clash of arguments easier to audit.
+"""
+
 
 def create_bull_researcher(llm):
     def bull_node(state) -> dict:
@@ -42,6 +51,7 @@ Latest world affairs news: {news_report}
 Conversation history of the debate: {history}
 Last bear argument: {current_response}
 Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.
+{RESEARCH_DEBATE_CONTRACT}
 """ + get_language_instruction()
 
         response = llm.invoke(prompt)

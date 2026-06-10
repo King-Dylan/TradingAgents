@@ -79,7 +79,10 @@ class ResearchPlan(BaseModel):
         description=(
             "Conversational summary of the key points from both sides of the "
             "debate, ending with which arguments led to the recommendation. "
-            "Speak naturally, as if to a teammate."
+            "Preserve the issue-by-issue clash: name the disputed topics, "
+            "state the bull and bear interpretation of each, and explain "
+            "which side carried the stronger evidence. Speak naturally, as "
+            "if to a teammate."
         ),
     )
     strategic_actions: str = Field(
@@ -193,7 +196,9 @@ class PortfolioDecision(BaseModel):
         description=(
             "Detailed reasoning anchored in specific evidence from the analysts' "
             "debate. If prior lessons are referenced in the prompt context, "
-            "incorporate them; otherwise rely solely on the current analysis."
+            "incorporate them; otherwise rely solely on the current analysis. "
+            "Preserve the debate's issue-by-issue structure instead of "
+            "compressing it into a broad summary."
         ),
     )
     price_target: Optional[float] = Field(
