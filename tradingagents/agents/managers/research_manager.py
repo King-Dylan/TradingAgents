@@ -37,6 +37,13 @@ def create_research_manager(llm):
 
 Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced.
 
+**Horizon and execution discipline:**
+- Treat the recommendation as target portfolio exposure over the supported public-equity investment horizon, usually 12-24 months when the debate develops a strategic thesis.
+- Do not collapse a strategic Overweight into Hold only because near-term entry should be staged, pullback-based, sized small, or gated on the next Q2/Q3 validation event. Put those controls in Strategic Actions.
+- Overweight is appropriate when realized fundamentals and catalysts are stronger than unresolved valuation, free-cash-flow, leverage, or technical risks, but those risks cap sizing and prevent a full Buy.
+- Hold is appropriate when both the near-term setup and the strategic evidence are genuinely balanced, or when validation risks fully offset the bull case and no above-benchmark exposure is warranted.
+- For Overweight cases, separate near-term resistance or squeeze zones from the strategic upside target; do not let the first resistance become the whole 12-24 month thesis.
+
 ---
 
 **Debate History:**

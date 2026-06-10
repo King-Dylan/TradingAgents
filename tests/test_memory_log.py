@@ -704,6 +704,18 @@ class TestPortfolioManagerInjection:
         pm_node(state)
         assert "Lessons from prior decisions" not in captured["prompt"]
 
+    def test_pm_prompt_separates_strategic_rating_from_tactical_execution(self):
+        captured = {}
+        llm = _structured_pm_llm(captured)
+        pm_node = create_portfolio_manager(llm)
+        pm_node(_make_pm_state())
+        prompt = captured["prompt"]
+        assert "target portfolio exposure over the supported investment horizon" in prompt
+        assert "Do not downgrade a strategic Overweight thesis to Hold solely" in prompt
+        assert "Q2/Q3 validation gates" in prompt
+        assert "near-term resistance or squeeze zones separate from the final Price Target" in prompt
+        assert "Keep Hold when the Research Manager and Trader are both Hold" in prompt
+
     def test_pm_returns_rendered_markdown_with_rating(self):
         """The structured PortfolioDecision is rendered to markdown that
         downstream consumers (memory log, signal processor, CLI display)

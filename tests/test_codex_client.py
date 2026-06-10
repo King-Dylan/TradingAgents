@@ -50,6 +50,15 @@ def test_codex_chat_model_shells_out_and_reads_last_message(monkeypatch, tmp_pat
     assert seen["timeout"] == 12
 
 
+def test_codex_client_defaults_to_deep_analysis_timeout(monkeypatch):
+    monkeypatch.delenv("CODEX_TIMEOUT", raising=False)
+
+    client = CodexClient(model="default", base_url=None)
+    llm = client.get_llm()
+
+    assert llm.timeout == 7200
+
+
 def test_codex_chat_model_instructs_full_trading_analysis_depth(
     monkeypatch, tmp_path
 ):
@@ -70,7 +79,10 @@ def test_codex_chat_model_instructs_full_trading_analysis_depth(
     assert "one-day technical move" in seen["input"]
     assert "not enough safety margin for Buy" in seen["input"]
     assert "realized growth, margin expansion" in seen["input"]
-    assert "Do not stretch a 1-3 month or 3-6 month Hold into a 12-24 month Overweight" in seen["input"]
+    assert "Keep rating horizon and execution timing separate" in seen["input"]
+    assert "tactical no-add, pullback entry, validation wait" in seen["input"]
+    assert "rate target portfolio exposure over the supported investment horizon" in seen["input"]
+    assert "Use Hold only when both the tactical setup and strategic evidence" in seen["input"]
     assert "short-term/tactical" in seen["input"]
     assert "long-term/strategic" in seen["input"]
     assert "MRVL/NXPI-style negative golden cases" in seen["input"]
@@ -81,6 +93,8 @@ def test_codex_chat_model_instructs_full_trading_analysis_depth(
     assert "hard stop/invalidation line" in seen["input"]
     assert "Do not apply this template to Hold decisions" in seen["input"]
     assert "280-300 target band" in seen["input"]
+    assert "distinguish near-term resistance from the final Price Target" in seen["input"]
+    assert "rounded strategic target above the first resistance" in seen["input"]
     assert "Leopold Aschenbrenner" in seen["input"]
     assert "deferred-revenue contract quality" in seen["input"]
     assert "steady-state CapEx and GPU refresh-cycle risk" in seen["input"]
@@ -183,10 +197,12 @@ def test_codex_structured_output_returns_pydantic_model(monkeypatch, tmp_path):
     assert "target exposure implied by the memo" in seen["input"]
     assert "Research Manager Hold plus TraderProposal Hold" in seen["input"]
     assert "short-term/tactical view and a long-term/strategic view" in seen["input"]
+    assert "Do not downgrade a strategic Overweight thesis to Hold solely" in seen["input"]
     assert "Preserve 1-3 month or 3-6 month horizons" in seen["input"]
-    assert "12-24 month horizon and staged Overweight execution template only" in seen["input"]
+    assert "12-24 month horizon and staged Overweight execution template" in seen["input"]
     assert "MRVL/NXPI-style Hold/Hold baselines" in seen["input"]
     assert "do not omit Price Target merely because there is no active Buy program" in seen["input"]
+    assert "separate near-term resistance from the rounded strategic target" in seen["input"]
     assert "Do not shorten fields merely because the response is JSON" in seen["input"]
     assert "Use the default 12-24 month public equity horizon" not in seen["input"]
 
@@ -228,4 +244,44 @@ def test_codex_exec_failure_raises(monkeypatch, tmp_path):
     llm = CodexChatModel(model="default", working_dir=str(tmp_path))
 
     with pytest.raises(RuntimeError, match="boom"):
+        llm.invoke("hello")
+
+
+def test_codex_exec_usage_limit_error_is_concise(monkeypatch, tmp_path):
+    noisy_prompt_echo = "Conversation:\n" + ("very long prompt\n" * 500)
+    usage_error = (
+        "ERROR: You've hit your usage limit. Upgrade to Pro "
+        "(https://chatgpt.com/explore/pro), visit "
+        "https://chatgpt.com/codex/settings/usage to purchase more credits "
+        "or try again at 8:03 PM."
+    )
+
+    def fake_run(command, input, text, capture_output, timeout, check):
+        return subprocess.CompletedProcess(
+            command,
+            1,
+            stdout=f"{noisy_prompt_echo}\n{usage_error}\n{usage_error}",
+            stderr="WARN noisy setup warning",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    llm = CodexChatModel(model="default", working_dir=str(tmp_path))
+
+    with pytest.raises(RuntimeError) as exc_info:
+        llm.invoke("hello")
+
+    message = str(exc_info.value)
+    assert usage_error in message
+    assert "very long prompt" not in message
+    assert len(message) < 300
+
+
+def test_codex_exec_timeout_raises_concise_error(monkeypatch, tmp_path):
+    def fake_run(command, input, text, capture_output, timeout, check):
+        raise subprocess.TimeoutExpired(command, timeout)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    llm = CodexChatModel(model="default", working_dir=str(tmp_path), timeout=12)
+
+    with pytest.raises(RuntimeError, match="codex exec timed out after 12s"):
         llm.invoke("hello")

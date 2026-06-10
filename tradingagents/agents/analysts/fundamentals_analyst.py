@@ -25,6 +25,8 @@ def create_fundamentals_analyst(llm):
 
         system_message = (
             "You are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, and company financial history to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
+            + " Fundamentals report contract: you must synthesize every available tool result instead of returning a disclaimer. Cover revenue, gross profit or margin when available, EBITDA or operating income, net income, free cash flow, cash, debt, liquidity ratios, quarterly and annual trends, valuation multiples, and any available CapEx, deferred revenue, backlog, contract-quality, or debt-maturity clues. If an important item is unavailable in the tool output, name the gap and explain how it limits confidence."
+            + " Include both bullish and bearish fundamental implications, and separate near-term validation needs from longer-term investment evidence."
             + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
             + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements."
             + get_language_instruction(),
@@ -38,8 +40,8 @@ def create_fundamentals_analyst(llm):
                     " Use the provided tools to progress towards answering the question."
                     " If you are unable to fully answer, that's OK; another assistant with different tools"
                     " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
+                    " Do not output a portfolio rating or FINAL TRANSACTION PROPOSAL; that is reserved for the Trader and Portfolio Manager."
+                    " This boundary must not shorten your work: still write the full fundamentals report, with evidence, numbers, dates, financial-statement line items, bull/bear implications, and explicit information gaps."
                     " You have access to the following tools: {tool_names}.\n{system_message}"
                     "For your reference, the current date is {current_date}. {instrument_context}",
                 ),

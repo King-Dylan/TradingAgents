@@ -61,7 +61,7 @@ def create_portfolio_manager(llm):
 
 ---
 
-Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
+Be decisive and ground every conclusion in specific evidence from the analysts. Set the final rating from target portfolio exposure over the supported investment horizon, not merely from whether the first trade is staged or gated. Do not downgrade a strategic Overweight thesis to Hold solely because near-term execution uses small tranches, pullback entries, Q2/Q3 validation gates, or strict stops; express those constraints through sizing, timing, risk levels, and catalysts. For strategic 12-24 month Overweight decisions, keep near-term resistance or squeeze zones separate from the final Price Target; the Price Target should reflect the strategic upside target, not merely the first resistance. Keep Hold when the Research Manager and Trader are both Hold and the risk debate does not add explicit evidence for above-benchmark exposure.{get_language_instruction()}"""
 
         final_trade_decision = invoke_structured_or_freetext(
             structured_llm,

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shlex
 import subprocess
 import tempfile
@@ -26,22 +27,28 @@ from .base_client import BaseLLMClient
 
 _DEFAULT_MODEL_ALIASES = {"", "default", "codex", "codex-cli"}
 _CODEX_REASONING_EFFORTS = {"minimal", "low", "medium", "high", "xhigh"}
+_ERROR_DETAIL_LIMIT = 4000
+_USAGE_LIMIT_RE = re.compile(
+    r"ERROR:\s+You've hit your usage limit\..*?(?=\n|$)",
+    re.IGNORECASE,
+)
 _TRADING_ANALYSIS_DEPTH_INSTRUCTION = """TradingAgents output-depth contract:
 - Preserve the original agent workflow's depth. Do not compress analyst reports, researcher debates, risk debates, or manager decisions into terse summaries.
 - When writing a final answer, produce a full investment-research artifact: concrete numbers, dates, price levels, tool evidence, bull and bear counterpoints, risk controls, and the reasoning chain that connects evidence to the recommendation.
-- Debate agents must actively engage prior arguments instead of restating a short position. Decision agents must explain why the winning side won and which opposing points still matter.
+- Debate agents must actively engage prior arguments instead of restating a short position. They should preserve old API-style cross-examination: issue-by-issue rebuttals, explicit concessions, evidence tables or scorecards when useful, and direct answers to the opponent's strongest claims. Decision agents must explain why the winning side won and which opposing points still matter.
 - Preserve the five-tier portfolio scale. Buy and Sell are high-conviction endpoints; Overweight and Underweight are valid nuanced portfolio ratings for partial exposure changes. Do not collapse "trim", "reduce risk", "avoid adding", or "keep a tracking position" into a full Sell unless the memo actually recommends exiting or avoiding the position outright.
 - Keep tactical transaction proposals distinct from portfolio ratings, but do not let that distinction become a bullish upgrade rule. A TraderProposal may use Buy/Hold/Sell for execution, while the Portfolio Manager uses Buy/Overweight/Hold/Underweight/Sell for target exposure.
 - Preserve the upstream burden of proof. If the Research Manager is Hold and the TraderProposal is Hold, the Portfolio Manager must normally remain Hold unless the risk debate introduces new, explicit evidence for above-benchmark exposure. Do not upgrade Hold/Hold into Overweight/Buy just because a long-term bull case exists.
 - For TraderProposal, Buy means initiating or building a long exposure program, including staged, conditional, or pullback-based entries, but only when the Research Manager recommends Buy/Overweight or explicitly instructs the trader to build, add, restore, or increase exposure. Use Hold when the plan calls for maintaining exposure, waiting for a better entry, awaiting earnings/validation, or monitoring trigger levels without a current add program.
 - Weigh evidence according to the requested investment horizon. Do not let a one-day technical move or valuation concern mechanically override already observed fundamentals, backlog/deferred revenue, margin progress, insider/customer evidence, or catalysts; explain why those positives are or are not sufficient.
 - In growth-equity debates, separate "not enough safety margin for Buy" from "thesis broken enough for Underweight/Sell". Valuation, negative FCF, leverage, heavy CapEx, or technical weakness can cap sizing and conviction, but should only drive Underweight/Sell after weighing whether realized growth, margin expansion, backlog/deferred revenue, pricing power, customer adoption, catalysts, horizon, and position controls preserve a constructive risk/reward.
-- Preserve the actionable horizon from the prompt and upstream agents. Do not stretch a 1-3 month or 3-6 month Hold into a 12-24 month Overweight. When both horizons matter, explicitly separate "short-term/tactical" from "long-term/strategic" inside the narrative; if they conflict, the final rating and TraderProposal should follow the current actionable setup, while the long-term view may be a watchlist or conditional add plan.
-- Use the 12-24 month horizon only when the prompt or upstream evidence supports a strategic investment thesis. For a short-term or balanced setup, keep the shorter time horizon and state what long-term evidence would be needed to upgrade.
+- Keep rating horizon and execution timing separate. Research Manager and Portfolio Manager rate target portfolio exposure over the supported investment horizon; TraderProposal translates that plan into the immediate transaction. Do not let a tactical no-add, pullback entry, validation wait, or one-day technical setback automatically turn a strategic above-benchmark thesis into Hold when the debate says realized fundamentals are stronger than unresolved risks. Conversely, do not stretch an explicitly short-term or genuinely balanced 1-3 month / 3-6 month Hold into a 12-24 month Overweight.
+- Use the 12-24 month horizon when the prompt or upstream evidence supports a strategic public-equity investment thesis. When short-term/tactical and long-term/strategic views diverge, separate them explicitly: the final Research Manager and Portfolio Manager rating should reflect target portfolio exposure over the strategic horizon, while the TraderProposal and execution text should express staged entries, pullback conditions, validation gates, and risk controls. Use Hold only when both the tactical setup and strategic evidence do not justify above-benchmark exposure.
 - Trigger the staged Overweight execution template only after the final rating is actually Overweight or Buy and the upstream evidence supports increasing exposure. The template is appropriate for an evidence-backed above-benchmark program: satellite/growth allocation around 2-4% of the portfolio, staged entries instead of a full first order, an initial tranche around 40-50% of the target position when the current support zone is acceptable, additional tranches near the next support zone or the 50-day SMA, and a hard invalidation/stop at the 50-day SMA unless the prompt provides a different risk budget. When the evidence contains a pullback zone such as 200-210 and a 50-day SMA, include both explicitly: add near 200-210 or closer to the 50-day SMA, and use the 50-day SMA as the hard stop/invalidation line. Do not apply this template to Hold decisions; for Hold, list trigger prices and validation events without calling them an active Buy program.
 - Treat MRVL/NXPI-style negative golden cases as guardrails: when the old API-style baseline is Research Manager Hold, Trader Hold, and Portfolio Manager Hold because valuation, timing, or validation risks offset the bull case, Codex must not convert that into Overweight/Buy. In those cases, output a clear short-term Hold/no-add conclusion plus a separate long-term watchlist or conditional-upgrade path.
 - For Overweight growth-equity upside targets, preserve the full bull-case target range from the evidence and debate. If the sources or debate include a 280-300 target band, do not collapse the final price target to the lower sell-side anchor merely because one source says 280; use the higher extension target, such as 300, when the final thesis is constructive but position sizing is disciplined.
-- Preserve the original debate-coverage depth. Bull, bear, risk, trader, and manager outputs should explicitly address, when source evidence is present: strategic insider ownership such as Leopold Aschenbrenner's stake, GPU pricing power and demand elasticity, Q2/Q3 earnings validation, debt maturity/refinancing structure, deferred-revenue contract quality including refund or take-or-pay terms, steady-state CapEx and GPU refresh-cycle risk, cash versus debt, revenue growth, gross margin, valuation multiples, short interest, and catalysts. If a datapoint is missing, name it as an information gap rather than omitting the topic.
+- For a strategic 12-24 month Overweight in a high-volatility growth stock, distinguish near-term resistance from the final Price Target. Do not set the final Price Target at the first resistance or squeeze zone if the thesis is explicitly multi-quarter and the debate identifies a higher prior high or extension path; use a rounded strategic target above the first resistance when supported by growth, backlog/deferred revenue, catalysts, and risk-controlled sizing.
+- Preserve the original debate-coverage depth. Bull, bear, risk, trader, and manager outputs should explicitly address, when source evidence is present: strategic insider ownership such as Leopold Aschenbrenner's stake, GPU pricing power and demand elasticity, Q2/Q3 earnings validation, debt maturity/refinancing structure, deferred-revenue contract quality including refund or take-or-pay terms, steady-state CapEx and GPU refresh-cycle risk, cash versus debt, revenue growth, gross margin, valuation multiples, short interest, and catalysts. If a datapoint is missing, name it as an information gap rather than omitting the topic. Do not turn these topics into a flat checklist; show the clash between the bull and bear interpretation of each material topic.
 - Use the requested output language from the conversation. Keep JSON protocols valid when JSON is required, but put the full report text inside the JSON string fields."""
 
 
@@ -106,6 +113,25 @@ def _apply_stop(text: str, stop: list[str] | None) -> str:
     return text if earliest == -1 else text[:earliest]
 
 
+def _summarize_codex_failure(
+    *,
+    stdout: str,
+    stderr: str,
+    returncode: int,
+) -> str:
+    combined = "\n".join(part.strip() for part in (stderr, stdout) if part.strip())
+    usage_match = _USAGE_LIMIT_RE.search(combined)
+    if usage_match:
+        return usage_match.group(0)
+
+    if not combined:
+        return f"exit code {returncode}"
+
+    if len(combined) <= _ERROR_DETAIL_LIMIT:
+        return combined
+    return f"{combined[:_ERROR_DETAIL_LIMIT].rstrip()}\n...[truncated]"
+
+
 def _tool_name(tool_schema: dict[str, Any]) -> str | None:
     function = tool_schema.get("function")
     if isinstance(function, dict):
@@ -149,7 +175,7 @@ class CodexChatModel(BaseChatModel):
 
     model: str = "default"
     command: str = "codex"
-    timeout: float = 900.0
+    timeout: float = 7200.0
     sandbox: str = "read-only"
     approval_policy: str = "never"
     working_dir: Optional[str] = None
@@ -256,19 +282,26 @@ Do not wrap the JSON in Markdown."""
             output_path = Path(tmpdir) / "last_message.txt"
             command = self._command(output_path)
 
-            completed = subprocess.run(
-                command,
-                input=prompt,
-                text=True,
-                capture_output=True,
-                timeout=self.timeout,
-                check=False,
-            )
+            try:
+                completed = subprocess.run(
+                    command,
+                    input=prompt,
+                    text=True,
+                    capture_output=True,
+                    timeout=self.timeout,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise RuntimeError(
+                    f"codex exec timed out after {self.timeout:g}s"
+                ) from exc
 
             if completed.returncode != 0:
-                stderr = completed.stderr.strip()
-                stdout = completed.stdout.strip()
-                detail = stderr or stdout or f"exit code {completed.returncode}"
+                detail = _summarize_codex_failure(
+                    stdout=completed.stdout,
+                    stderr=completed.stderr,
+                    returncode=completed.returncode,
+                )
                 raise RuntimeError(f"codex exec failed: {detail}")
 
             if output_path.exists():
@@ -352,7 +385,7 @@ class CodexClient(BaseLLMClient):
         return CodexChatModel(
             model=self.model,
             command=self.kwargs.get("command") or os.environ.get("CODEX_BINARY", "codex"),
-            timeout=float(self.kwargs.get("timeout", os.environ.get("CODEX_TIMEOUT", 900))),
+            timeout=float(self.kwargs.get("timeout", os.environ.get("CODEX_TIMEOUT", 7200))),
             sandbox=self.kwargs.get("sandbox", os.environ.get("CODEX_SANDBOX", "read-only")),
             approval_policy=self.kwargs.get(
                 "approval_policy",
@@ -423,20 +456,26 @@ class CodexStructuredChatModel:
             "normally remain PortfolioDecision Hold unless the risk debate "
             "adds explicit new evidence for above-benchmark exposure. Include "
             "both a short-term/tactical view and a long-term/strategic view in "
-            "PortfolioDecision narrative fields when both are relevant; if "
-            "they conflict, keep the final rating tied to the current "
-            "actionable setup and express the long-term case as watchlist or "
-            "conditional-upgrade language. Preserve 1-3 month or 3-6 month "
-            "horizons when upstream evidence supports a short-term Hold. Use "
-            "the 12-24 month horizon and staged Overweight execution template "
-            "only when the prompt or upstream evidence supports a strategic "
-            "Buy/Overweight add program. MRVL/NXPI-style Hold/Hold baselines "
+            "PortfolioDecision narrative fields when both are relevant. Do "
+            "not downgrade a strategic Overweight thesis to Hold solely "
+            "because the immediate execution is staged, pullback-based, or "
+            "requires Q2/Q3 validation; express that uncertainty through "
+            "position sizing, tranches, stop levels, and validation gates. "
+            "Preserve 1-3 month or 3-6 month horizons when both tactical and "
+            "strategic evidence support a short-term Hold. Use the 12-24 "
+            "month horizon and staged Overweight execution template when the "
+            "prompt or upstream evidence supports a strategic Buy/Overweight "
+            "add program. MRVL/NXPI-style Hold/Hold baselines "
             "are negative golden examples: do not turn them into Overweight/"
             "Buy merely because a long-term bull case exists. For "
             "PortfolioDecision price_target, preserve the neutral target, "
             "current fair-value anchor, or key decision level even when the "
             "final rating is Hold; do not omit Price Target merely because "
-            "there is no active Buy program. Do not shorten "
+            "there is no active Buy program. For strategic 12-24 month "
+            "Overweight decisions, do not use the first technical resistance "
+            "or squeeze zone as the final Price Target when the thesis points "
+            "to a higher multi-quarter extension; separate near-term "
+            "resistance from the rounded strategic target. Do not shorten "
             "fields merely because the response is JSON."
             "\n\n"
             f"{_TRADING_ANALYSIS_DEPTH_INSTRUCTION}\n\nJSON Schema:\n"

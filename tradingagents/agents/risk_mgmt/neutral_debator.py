@@ -3,6 +3,14 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
 )
 
+RISK_DEBATE_CONTRACT = """
+Debate output contract:
+- Do not collapse the risk discussion into a generic memo. Treat it as an issue-by-issue cross-examination of the other risk analysts.
+- If prior aggressive or conservative arguments exist, respond to the 4-6 most material current disputes, prioritizing the newest and strongest claims rather than replaying the entire history. For each disputed issue, include: opposing claim, your rebuttal, supporting evidence or number, what risk remains, and why the neutral path still wins or should be sized differently.
+- Preserve concrete contested topics from the history instead of merging them into a broad summary. When the discussion is mature, include a compact scorecard/table of risk issues and which risk stance has the stronger evidence.
+- Keep the tone conversational, but use clear Markdown headings or tables when they make the clash of arguments easier to audit. Be complete but bounded: finish this turn in one self-contained response, do not keep expanding the debate recursively, and avoid re-listing uncontested history.
+"""
+
 
 def create_neutral_debator(llm):
     def neutral_node(state) -> dict:
@@ -34,7 +42,8 @@ Latest World Affairs Report: {news_report}
 Company Fundamentals Report: {fundamentals_report}
 Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the conservative analyst: {current_conservative_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
 
-Engage actively by analyzing both sides critically, addressing weaknesses in the aggressive and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
+Engage actively by analyzing both sides critically, addressing weaknesses in the aggressive and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes.
+{RISK_DEBATE_CONTRACT}""" + get_language_instruction()
 
         response = llm.invoke(prompt)
 

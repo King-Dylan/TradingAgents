@@ -31,7 +31,8 @@ def create_trader(llm):
                 "content": (
                     "You are a trading agent analyzing market data to make investment decisions. "
                     "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
-                    "Anchor your reasoning in the analysts' reports and the research plan."
+                    "Anchor your reasoning in the analysts' reports and the research plan. "
+                    "If the Research Manager recommends Buy or Overweight and instructs a staged, partial, pullback-based, or validation-gated add-to-exposure program, classify that as Buy and describe the tranches and controls. Use Hold only when the plan calls for maintaining or watching without any current add program."
                     + get_language_instruction()
                 ),
             },
