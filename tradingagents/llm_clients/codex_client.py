@@ -31,13 +31,15 @@ _TRADING_ANALYSIS_DEPTH_INSTRUCTION = """TradingAgents output-depth contract:
 - When writing a final answer, produce a full investment-research artifact: concrete numbers, dates, price levels, tool evidence, bull and bear counterpoints, risk controls, and the reasoning chain that connects evidence to the recommendation.
 - Debate agents must actively engage prior arguments instead of restating a short position. Decision agents must explain why the winning side won and which opposing points still matter.
 - Preserve the five-tier portfolio scale. Buy and Sell are high-conviction endpoints; Overweight and Underweight are valid nuanced portfolio ratings for partial exposure changes. Do not collapse "trim", "reduce risk", "avoid adding", or "keep a tracking position" into a full Sell unless the memo actually recommends exiting or avoiding the position outright.
-- Keep tactical transaction proposals distinct from portfolio ratings. A TraderProposal may use Buy/Hold/Sell for execution, but the Portfolio Manager must restore the five-tier rating nuance when sizing, risk controls, or the debate support a partial position rather than an endpoint.
-- Do not equate a tactical TraderProposal Hold with a portfolio-rating Hold. If the research plan and risk debate support above-benchmark exposure, staged entries, or rebuilding to an overweight risk budget after triggers, the Portfolio Manager should preserve Overweight even when the immediate trade action is Hold. Choose the final rating from target exposure and thesis strength, not from the transaction verb alone.
-- For TraderProposal, Buy means initiating or building a long exposure program, including staged, conditional, or pullback-based entries. Do not reserve Buy only for an immediate market order. When the Research Manager recommends Buy or Overweight and gives levels for building, adding, restoring, or increasing exposure, the Trader should normally choose Buy with disciplined entry/sizing/stop details. Use Hold only when the plan truly calls for maintaining existing exposure with no planned add or reduce program.
+- Keep tactical transaction proposals distinct from portfolio ratings, but do not let that distinction become a bullish upgrade rule. A TraderProposal may use Buy/Hold/Sell for execution, while the Portfolio Manager uses Buy/Overweight/Hold/Underweight/Sell for target exposure.
+- Preserve the upstream burden of proof. If the Research Manager is Hold and the TraderProposal is Hold, the Portfolio Manager must normally remain Hold unless the risk debate introduces new, explicit evidence for above-benchmark exposure. Do not upgrade Hold/Hold into Overweight/Buy just because a long-term bull case exists.
+- For TraderProposal, Buy means initiating or building a long exposure program, including staged, conditional, or pullback-based entries, but only when the Research Manager recommends Buy/Overweight or explicitly instructs the trader to build, add, restore, or increase exposure. Use Hold when the plan calls for maintaining exposure, waiting for a better entry, awaiting earnings/validation, or monitoring trigger levels without a current add program.
 - Weigh evidence according to the requested investment horizon. Do not let a one-day technical move or valuation concern mechanically override already observed fundamentals, backlog/deferred revenue, margin progress, insider/customer evidence, or catalysts; explain why those positives are or are not sufficient.
 - In growth-equity debates, separate "not enough safety margin for Buy" from "thesis broken enough for Underweight/Sell". Valuation, negative FCF, leverage, heavy CapEx, or technical weakness can cap sizing and conviction, but should only drive Underweight/Sell after weighing whether realized growth, margin expansion, backlog/deferred revenue, pricing power, customer adoption, catalysts, horizon, and position controls preserve a constructive risk/reward.
-- Unless the agent prompt explicitly asks for short-term trading, treat public-equity investment memos as 12-24 month recommendations. Do not shorten an Overweight thesis to a 3-6 month tactical trade just because the latest candle is weak; use near-term technical levels as entry and risk-management triggers inside the longer horizon.
-- For an Overweight growth-equity recommendation, default to the original TradingAgents execution style: a satellite/growth allocation around 2-4% of the portfolio, staged entries instead of a full first order, an initial tranche around 40-50% of the target position when the current support zone is acceptable, additional tranches near the next support zone or the 50-day SMA, and a hard invalidation/stop at the 50-day SMA unless the prompt provides a different risk budget. When the evidence contains a pullback zone such as 200-210 and a 50-day SMA, include both explicitly: add near 200-210 or closer to the 50-day SMA, and use the 50-day SMA as the hard stop/invalidation line. Do not substitute a short-term ATR stop for that 50-day hard stop in the final Overweight template unless the prompt explicitly asks for a trading-only horizon. Do not reduce the first tranche below 40% solely because of a one-day technical breakdown or a neutral risk analyst's caution if the final rating remains Overweight; reflect that caution through position-size caps, add-on triggers, hedges, or monitoring conditions. Use analogous levels from the report if exact prices differ.
+- Preserve the actionable horizon from the prompt and upstream agents. Do not stretch a 1-3 month or 3-6 month Hold into a 12-24 month Overweight. When both horizons matter, explicitly separate "short-term/tactical" from "long-term/strategic" inside the narrative; if they conflict, the final rating and TraderProposal should follow the current actionable setup, while the long-term view may be a watchlist or conditional add plan.
+- Use the 12-24 month horizon only when the prompt or upstream evidence supports a strategic investment thesis. For a short-term or balanced setup, keep the shorter time horizon and state what long-term evidence would be needed to upgrade.
+- Trigger the staged Overweight execution template only after the final rating is actually Overweight or Buy and the upstream evidence supports increasing exposure. The template is appropriate for an evidence-backed above-benchmark program: satellite/growth allocation around 2-4% of the portfolio, staged entries instead of a full first order, an initial tranche around 40-50% of the target position when the current support zone is acceptable, additional tranches near the next support zone or the 50-day SMA, and a hard invalidation/stop at the 50-day SMA unless the prompt provides a different risk budget. When the evidence contains a pullback zone such as 200-210 and a 50-day SMA, include both explicitly: add near 200-210 or closer to the 50-day SMA, and use the 50-day SMA as the hard stop/invalidation line. Do not apply this template to Hold decisions; for Hold, list trigger prices and validation events without calling them an active Buy program.
+- Treat MRVL/NXPI-style negative golden cases as guardrails: when the old API-style baseline is Research Manager Hold, Trader Hold, and Portfolio Manager Hold because valuation, timing, or validation risks offset the bull case, Codex must not convert that into Overweight/Buy. In those cases, output a clear short-term Hold/no-add conclusion plus a separate long-term watchlist or conditional-upgrade path.
 - For Overweight growth-equity upside targets, preserve the full bull-case target range from the evidence and debate. If the sources or debate include a 280-300 target band, do not collapse the final price target to the lower sell-side anchor merely because one source says 280; use the higher extension target, such as 300, when the final thesis is constructive but position sizing is disciplined.
 - Preserve the original debate-coverage depth. Bull, bear, risk, trader, and manager outputs should explicitly address, when source evidence is present: strategic insider ownership such as Leopold Aschenbrenner's stake, GPU pricing power and demand elasticity, Q2/Q3 earnings validation, debt maturity/refinancing structure, deferred-revenue contract quality including refund or take-or-pay terms, steady-state CapEx and GPU refresh-cycle risk, cash versus debt, revenue growth, gross margin, valuation multiples, short interest, and catalysts. If a datapoint is missing, name it as an information gap rather than omitting the topic.
 - Use the requested output language from the conversation. Keep JSON protocols valid when JSON is required, but put the full report text inside the JSON string fields."""
@@ -410,15 +412,28 @@ class CodexStructuredChatModel:
             "horizon. Preserve rating-scale semantics: choose Buy/Sell only "
             "for endpoint conviction, and choose Overweight/Underweight when "
             "the memo supports partial exposure changes, disciplined sizing, "
-            "or tracking positions. For TraderProposal, choose Buy for a "
-            "staged long-entry or add-to-exposure plan even when entries are "
-            "conditional or split across price levels; Hold is for no planned "
-            "transaction. For PortfolioDecision, set the rating from the "
+            "or tracking positions. For TraderProposal, choose Buy only when "
+            "the upstream plan calls for a staged long-entry or "
+            "add-to-exposure program, even if entries are conditional or split "
+            "across price levels; Hold is for no planned transaction. For "
+            "PortfolioDecision, set the rating from the "
             "target exposure implied by the memo, not just from the "
-            "TraderProposal action verb. Use the default 12-24 month public "
-            "equity horizon and the staged Overweight execution template "
-            "unless the prompt explicitly overrides them. Do not shorten fields "
-            "merely because the response is JSON."
+            "TraderProposal action verb, while preserving the upstream burden "
+            "of proof: Research Manager Hold plus TraderProposal Hold should "
+            "normally remain PortfolioDecision Hold unless the risk debate "
+            "adds explicit new evidence for above-benchmark exposure. Include "
+            "both a short-term/tactical view and a long-term/strategic view in "
+            "PortfolioDecision narrative fields when both are relevant; if "
+            "they conflict, keep the final rating tied to the current "
+            "actionable setup and express the long-term case as watchlist or "
+            "conditional-upgrade language. Preserve 1-3 month or 3-6 month "
+            "horizons when upstream evidence supports a short-term Hold. Use "
+            "the 12-24 month horizon and staged Overweight execution template "
+            "only when the prompt or upstream evidence supports a strategic "
+            "Buy/Overweight add program. MRVL/NXPI-style Hold/Hold baselines "
+            "are negative golden examples: do not turn them into Overweight/"
+            "Buy merely because a long-term bull case exists. Do not shorten "
+            "fields merely because the response is JSON."
             "\n\n"
             f"{_TRADING_ANALYSIS_DEPTH_INSTRUCTION}\n\nJSON Schema:\n"
             f"{_schema_json(self.schema)}"
